@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Choose a design | SwiftPrint{% endblock %}
+{% block content %}
+<section class="max-w-6xl mx-auto px-4 py-8 sm:py-12" x-data="stockGallery({{ stock|tojson }}, {{ selected_service|tojson }})">
+  <div class="max-w-2xl">
+    <h1 class="font-display font-extrabold text-3xl sm:text-4xl">Choose a design</h1>
+    <p class="mt-2 text-ink/70">Pick a design in stock, or upload your own idea.</p>
+  </div>
+
+  <nav class="mt-6 flex flex-wrap gap-2" aria-label="Filter designs by service">
+    <button type="button" @click="service = ''" :aria-pressed="service === ''" class="rounded-full border px-4 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-mag" :class="service === '' ? 'bg-ink text-white border-ink' : 'bg-white border-ink/20'">All</button>
+    <button type="button" @click="service = 'sticker'" :aria-pressed="service === 'sticker'" class="rounded-full border px-4 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-mag" :class="service === 'sticker' ? 'bg-ink text-white border-ink' : 'bg-white border-ink/20'">Stickers</button>
+    <button type="button" @click="service = 'portrait'" :aria-pressed="service === 'portrait'" class="rounded-full border px-4 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-mag" :class="service === 'portrait' ? 'bg-ink text-white border-ink' : 'bg-white border-ink/20'">Portraits</button>
+  </nav>
+
+  <nav class="mt-3 flex flex-wrap gap-2" aria-label="Filter designs by category">
+    <button type="button" @click="category = ''" :aria-pressed="category === ''" class="rounded-full border px-3 py-1.5 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-mag" :class="category === '' ? 'bg-sun border-sun' : 'bg-white border-ink/20'">All categories</button>
+    {% for item_category in categories %}
+    <button type="button" @click="category = {{ item_category|tojson }}" :aria-pressed="category === {{ item_category|tojson }}" class="rounded-full border px-3 py-1.5 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-mag" :class="category === {{ item_category|tojson }} ? 'bg-sun border-sun' : 'bg-white border-ink/20'">{{ item_category }}</button>
+    {% endfor %}
+  </nav>
+
+  <aside class="mt-6 rounded-xl border border-mag/30 bg-white p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+    <div>
+      <h2 class="font-display font-bold text-xl">Can’t find what you want?</h2>
+      <p class="mt-1 text-sm text-ink/65">Send us your own photo, screenshot or sketch.</p>
+    </div>
+    <a :href="'{{ url_for('checkout') }}?service=' + customService + '&amp;custom=1'" class="mt-4 inline-flex rounded-full bg-mag px-5 py-3 font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:mt-0">Upload my own design</a>
+  </aside>
+
+  <div class="mt-4 text-sm">
+    <a href="{{ url_for('checkout') }}" class="underline decoration-ink/40 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-mag">Need printing, scanning or an application instead?</a>
+  </div>
+
+  <div class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+    {% for item in stock %}
+    {% set item_service = catalog[item.service] %}
+    {% set item_price = item.get('price', min_price(item.service)) %}
+    <a x-show="matches({{ item.service|tojson }}, {{ item.category|tojson }})" x-cloak
+       href="{{ url_for('checkout', service=item.service, stock=item.id) }}"
+       class="group overflow-hidden rounded-xl border border-ink/10 bg-white transition-colors hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mag">
+      <div class="relative aspect-square bg-chalk" x-data="{ imageFailed: false }">
+        <img x-show="!imageFailed" x-on:error="imageFailed = true" src="{{ url_for('static', filename='img/stock/' ~ item.image) }}" alt="{{ item.title }} design" loading="lazy" class="h-full w-full object-cover">
+        <div x-show="imageFailed" x-cloak role="img" aria-label="{{ item.title }} design preview" class="absolute inset-0 flex items-center justify-center bg-sun/60 p-4 text-center">
+          <span class="font-display font-bold text-ink">{{ item.title }}</span>
+        </div>
+        <span class="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium">{{ item.category }}</span>
+      </div>
+      <div class="p-3 sm:p-4">
+        <h2 class="font-display font-bold leading-tight">{{ item.title }}</h2>
+        <p class="mt-1 text-xs text-ink/60">{{ item_service.name }}</p>
+        <p class="mt-2 text-xs leading-relaxed text-ink/65">{{ item.description }}</p>
+        <p class="mt-3 text-sm font-medium">From KES {{ item_price }}</p>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  <p x-show="!hasResults" x-cloak class="mt-8 rounded-xl border border-ink/10 bg-white p-6 text-center text-ink/70" role="status">No designs match those filters. Try another category or upload your own design.</p>
+</section>
+
+<script>
+document.addEventListener('alpine:init', () => {
+  Alpine.data('stockGallery', (stock, initialService) => ({
+    stock,
+    service: initialService,
+    category: '',
+    matches(itemService, itemCategory) {
+      return (!this.service || this.service === itemService) &&
+        (!this.category || this.category === itemCategory);
+    },
+    get hasResults() {
+      return this.stock.some(item => this.matches(item.service, item.category));
+    },
+    get customService() {
+      return this.service || 'portrait';
+    }
+  }));
+});
+</script>
+{% endblock %}
