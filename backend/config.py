@@ -27,10 +27,3 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "0") == "1"
-
-    # Future payments (placeholders)
-    MPESA_CONSUMER_KEY = os.environ.get("MPESA_CONSUMER_KEY", "")
-    MPESA_CONSUMER_SECRET = os.environ.get("MPESA_CONSUMER_SECRET", "")
-    MPESA_SHORTCODE = os.environ.get("MPESA_SHORTCODE", "")
-    MPESA_PASSKEY = os.environ.get("MPESA_PASSKEY", "")
-    MPESA_CALLBACK_URL = os.environ.get("MPESA_CALLBACK_URL", "")

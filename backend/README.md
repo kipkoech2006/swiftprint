@@ -1,6 +1,7 @@
 # Cyber Cafe & Wall Decor Shop — Flask backend
 
 Guest-only ordering (no customer accounts), secure uploads, WhatsApp confirmation, password-protected admin.
+The website does not process payments. Payment is collected in person after delivery.
 
 ## Local setup
 ```bash
@@ -22,7 +23,7 @@ Admin: http://127.0.0.1:5000/admin674/
 - After deploying this version to an existing installation, run `flask --app wsgi init-db` once to create the new display tables; existing orders are preserved.
 
 ## Where secrets live
-Only in `.env` (never committed). `config.py` reads them. Payment keys (`MPESA_*`) are placeholders for later.
+Only in `.env` (never committed). `config.py` reads them.
 On PythonAnywhere the `.env` file in the project folder is read the same way.
 
 ## Testing uploads
@@ -59,5 +60,5 @@ On PythonAnywhere the `.env` file in the project folder is read the same way.
 
 ## Notes
 - Uploaded files and `shop.db` live on PythonAnywhere disk; back them up (Files tab download or a scheduled task).
-- Free accounts restrict outbound internet to an allowlist; when you add M-Pesa Daraja, check that its API host is reachable (paid accounts are unrestricted). Inbound callbacks work fine.
+- Free accounts restrict outbound internet to an allowlist (paid accounts are unrestricted).
 - Next hardening steps: login rate limiting (Flask-Limiter), Flask-Migrate for schema changes, MySQL (PythonAnywhere offers it) via `DATABASE_URL`.
