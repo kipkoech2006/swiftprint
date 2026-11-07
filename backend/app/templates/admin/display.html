@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="{{ url_for('admin.dashboard') }}">&laquo; Orders</a></p>
+<form method="post" action="{{ url_for('admin.logout') }}" style="float:right">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Log out</button>
+</form>
+<h1>Public display</h1>
+<p>Categories and photos here are shown on the public order page.</p>
+
+<h2>Add category</h2>
+<form method="post" action="{{ url_for('admin.add_category') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Category name <input name="name" maxlength="80" required></label>
+  <p><button type="submit">Add category</button></p>
+</form>
+
+<h2>Add photo</h2>
+{% if categories %}
+<form method="post" action="{{ url_for('admin.add_display_image') }}" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Category
+    <select name="category_id" required>
+      {% for category in categories %}<option value="{{ category.id }}">{{ category.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Photo (JPG, PNG, WEBP)
+    <input type="file" name="image" accept=".jpg,.jpeg,.png,.webp" required>
+  </label>
+  <label>Alternative text <input name="alt_text" maxlength="160" placeholder="Describe the photo"></label>
+  <p><button type="submit">Upload photo</button></p>
+</form>
+{% else %}
+<p>Add a category before uploading photos.</p>
+{% endif %}
+
+{% for category in categories %}
+<section>
+  <h2>{{ category.name }}</h2>
+  {% if category.images %}
+  <ul>
+    {% for image in category.images %}
+    <li>
+      {{ image.original_filename }}
+      <form method="post" action="{{ url_for('admin.delete_display_image', image_id=image.id) }}" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Remove photo</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No photos in this category.</p>
+  <form method="post" action="{{ url_for('admin.delete_category', category_id=category.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit">Delete category</button>
+  </form>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

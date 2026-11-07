@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ config.SHOP_NAME }} — Place an order</h1>
+{% if categories %}
+<section aria-labelledby="display-heading">
+  <h2 id="display-heading">Our work</h2>
+  {% for category in categories if category.images %}
+  <section>
+    <h3>{{ category.name }}</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem">
+      {% for image in category.images %}
+      <figure style="margin:0">
+        <img src="{{ url_for('main.display_image', image_id=image.id) }}"
+             alt="{{ image.alt_text or image.original_filename }}"
+             loading="lazy" style="width:100%;height:180px;object-fit:cover;border-radius:8px">
+      </figure>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</section>
+{% endif %}
+<form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Your name <input name="customer_name" required maxlength="120" value="{{ request.form.get('customer_name','') }}"></label>
+  <label>WhatsApp number <input name="whatsapp_number" required placeholder="0712 345 678" value="{{ request.form.get('whatsapp_number','') }}"></label>
+
+  <div id="items">
+    <fieldset class="item">
+      <legend>Item</legend>
+      <label>Type
+        <select name="item_type">{% for t in item_types %}<option>{{ t }}</option>{% endfor %}</select></label>
+      <label>Quantity <input type="number" name="item_quantity" min="1" value="1"></label>
+      <label>Size <input name="item_size" placeholder="A4, 24x36 in..."></label>
+      <label>Paper / finish / colour <input name="item_finish" placeholder="Matte, black &amp; white..."></label>
+      <label>Special instructions <textarea name="item_notes" rows="2"></textarea></label>
+      <label>File (PDF, DOCX, PNG, JPG, WEBP)
+        <input type="file" name="item_file" accept=".pdf,.docx,.png,.jpg,.jpeg,.webp"></label>
+      <button type="button" class="remove" style="margin-top:.6rem">Remove item</button>
+    </fieldset>
+  </div>
+  <button type="button" id="add">+ Add another item</button>
+
+  <label>Anything else? <textarea name="notes" rows="3">{{ request.form.get('notes','') }}</textarea></label>
+  <p><button type="submit">Submit order</button></p>
+</form>
+<script>
+  const box = document.getElementById('items');
+  const proto = box.firstElementChild.cloneNode(true);
+  document.getElementById('add').onclick = () => {
+    const n = proto.cloneNode(true);
+    n.querySelectorAll('input:not([type=file]),textarea').forEach(e => e.value = e.type === 'number' ? 1 : '');
+    box.appendChild(n);
+  };
+  box.addEventListener('click', e => {
+    if (e.target.classList.contains('remove') && box.children.length > 1) e.target.closest('.item').remove();
+  });
+</script>
+{% endblock %}

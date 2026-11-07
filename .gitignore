@@ -1,0 +1,6 @@
+.env
+shop.db
+venv/
+__pycache__/
+app/static/uploads/*
+!app/static/uploads/.gitkeep
