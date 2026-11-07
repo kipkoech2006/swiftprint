@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}SwiftPrint{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: {
+      fontFamily: { display: ['"Bricolage Grotesque"', 'sans-serif'], sans: ['"DM Sans"', 'sans-serif'] },
+      colors: { ink: '#16213a', chalk: '#f2f5f8', cyan: { ink: '#00a7d6' }, mag: '#e0267f', sun: '#ffd23f' }
+    } } }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+  <style>[x-cloak]{display:none!important}</style>
+</head>
+<body class="bg-chalk text-ink font-sans antialiased min-h-screen flex flex-col">
+  <header class="bg-white border-b border-ink/10">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="{{ url_for('index') }}" class="font-display font-extrabold text-xl tracking-tight">SwiftPrint</a>
+      <a href="{{ url_for('gallery') }}" class="text-sm font-medium bg-ink text-white rounded-full px-4 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mag">Start an order</a>
+    </div>
+  </header>
+  <main class="flex-1">{% block content %}{% endblock %}</main>
+  <footer class="border-t border-ink/10 bg-white text-sm text-ink/60">
+    <div class="max-w-5xl mx-auto px-4 py-6">No account needed. We contact you on WhatsApp about your order.</div>
+  </footer>
+</body>
+</html>
