@@ -3,31 +3,41 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}SwiftPrint{% endblock %}</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}{{ config.SHOP_NAME }}{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
   <script>
-    tailwind.config = { theme: { extend: {
-      fontFamily: { display: ['"Bricolage Grotesque"', 'sans-serif'], sans: ['"DM Sans"', 'sans-serif'] },
-      colors: { ink: '#16213a', chalk: '#f2f5f8', cyan: { ink: '#00a7d6' }, mag: '#e0267f', sun: '#ffd23f' }
-    } } }
+    try { document.documentElement.dataset.theme = localStorage.getItem('swiftprint-theme') || 'light'; } catch (e) {}
+    document.documentElement.classList.add('js');
   </script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
-  <style>[x-cloak]{display:none!important}</style>
+  <script defer src="{{ url_for('static', filename='js/site.js') }}"></script>
+  {% block head %}{% endblock %}
 </head>
-<body class="bg-chalk text-ink font-sans antialiased min-h-screen flex flex-col">
-  <header class="bg-white border-b border-ink/10">
-    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-      <a href="{{ url_for('index') }}" class="font-display font-extrabold text-xl tracking-tight">SwiftPrint</a>
-      <a href="{{ url_for('gallery') }}" class="text-sm font-medium bg-ink text-white rounded-full px-4 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mag">Start an order</a>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="container bar">
+      <a class="brand" href="{{ url_for('main.index') }}">{{ config.SHOP_NAME }}</a>
+      <button type="button" class="nav-toggle btn btn-outline btn-sm" aria-expanded="false" aria-controls="site-nav">Menu</button>
+      <nav id="site-nav" class="site-nav" aria-label="Main">
+        <a href="{{ url_for('main.index') }}#services">Services</a>
+        <a href="{{ url_for('main.gallery') }}" class="{{ 'active' if request.endpoint == 'main.gallery' }}">Designs</a>
+        <a href="{{ url_for('main.track') }}" class="{{ 'active' if request.endpoint == 'main.track' }}">Track order</a>
+        <button type="button" class="theme-toggle btn btn-outline btn-sm" aria-pressed="false">Dark mode</button>
+        <a class="btn btn-dark btn-sm" href="{{ url_for('main.checkout') }}">Start an order</a>
+      </nav>
     </div>
   </header>
-  <main class="flex-1">{% block content %}{% endblock %}</main>
-  <footer class="border-t border-ink/10 bg-white text-sm text-ink/60">
-    <div class="max-w-5xl mx-auto px-4 py-6">No account needed. We contact you on WhatsApp about your order.</div>
+  {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}
+  <div class="container flashes">
+    {% for category, message in messages %}<div class="flash {{ category }}" role="status"><span>{{ message }}</span><button type="button" aria-label="Dismiss">&times;</button></div>{% endfor %}
+  </div>{% endif %}{% endwith %}
+  <main id="main">{% block content %}{% endblock %}</main>
+  <footer class="site-footer">
+    <div class="container">No account needed. We contact you on WhatsApp about your order. Payment is collected in person after delivery.</div>
   </footer>
 </body>
 </html>

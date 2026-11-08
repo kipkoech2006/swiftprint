@@ -1,10 +1,13 @@
 import os
 import re
 import secrets
+import threading
+import time
 import uuid
+from collections import defaultdict, namedtuple
 from pathlib import Path
 
-from flask import current_app
+from flask import current_app, request
 from werkzeug.utils import secure_filename
 
 from .extensions import db
@@ -15,51 +18,108 @@ class UploadError(ValueError):
     pass
 
 
-def _matches_signature(ext: str, head: bytes) -> bool:
-    """Check the file's magic bytes so a renamed .exe/.html can't pass as an image."""
-    if ext == "pdf":
-        return head.startswith(b"%PDF-")
-    if ext == "png":
-        return head.startswith(b"\x89PNG\r\n\x1a\n")
-    if ext in ("jpg", "jpeg"):
-        return head.startswith(b"\xff\xd8\xff")
-    if ext == "webp":
-        return head[:4] == b"RIFF" and head[8:12] == b"WEBP"
-    if ext == "docx":
-        return head.startswith(b"PK\x03\x04")
-    return False
+SavedFile = namedtuple("SavedFile", "stored original size")
+
+# ---- file-type checking by content (magic bytes), not just by name ------------------------
+_OLE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"  # old .doc/.xls/.ppt
+_ZIP = b"PK\x03\x04"                         # .docx/.xlsx/.pptx/.odt/.ods/.odp
+_RTF = b"{\\rtf"
 
 
-def save_upload(file_storage):
-    """Validate and save one upload. Returns (stored_name, original_name) or None if empty."""
+def _office_old(h):
+    return h.startswith(_OLE) or h.startswith(_ZIP) or h.lstrip().startswith(_RTF)
+
+
+def _zip(h):
+    return h.startswith(_ZIP)
+
+
+def _jpeg(h):
+    return h.startswith(b"\xff\xd8\xff")
+
+
+def _tiff(h):
+    return h[:4] in (b"II*\x00", b"MM\x00*")
+
+
+def _ftyp(h):
+    return h[4:8] == b"ftyp"  # HEIC/HEIF (iPhone photos)
+
+
+CHECKS = {
+    "pdf": lambda h: b"%PDF-" in h[:1024],
+    "doc": _office_old, "xls": _office_old, "ppt": _office_old,
+    "docx": _zip, "xlsx": _zip, "pptx": _zip, "odt": _zip, "ods": _zip, "odp": _zip,
+    "rtf": lambda h: h.lstrip().startswith(_RTF),
+    "txt": lambda h: b"\x00" not in h, "csv": lambda h: b"\x00" not in h,
+    "jpg": _jpeg, "jpeg": _jpeg,
+    "png": lambda h: h.startswith(b"\x89PNG\r\n\x1a\n"),
+    "gif": lambda h: h[:6] in (b"GIF87a", b"GIF89a"),
+    "bmp": lambda h: h[:2] == b"BM",
+    "tif": _tiff, "tiff": _tiff,
+    "webp": lambda h: h[:4] == b"RIFF" and h[8:12] == b"WEBP",
+    "heic": _ftyp, "heif": _ftyp,
+}
+
+
+def _size(file_storage):
+    stream = file_storage.stream
+    pos = stream.tell()
+    stream.seek(0, os.SEEK_END)
+    size = stream.tell()
+    stream.seek(pos)
+    return size
+
+
+def save_upload(file_storage, allowed=None, max_bytes=None):
+    """Validate and store one upload under a random name. Returns SavedFile, or None if empty."""
     if not file_storage or not file_storage.filename:
         return None
 
-    raw_name = file_storage.filename
-    ext = os.path.splitext(raw_name)[1].lstrip(".").lower()
-    if ext not in current_app.config["ALLOWED_EXTENSIONS"]:
-        allowed = ", ".join(sorted(current_app.config["ALLOWED_EXTENSIONS"]))
-        raise UploadError(f"File type not allowed. Allowed: {allowed}.")
+    raw = file_storage.filename
+    ext = os.path.splitext(raw)[1].lstrip(".").lower()
+    base = secure_filename(os.path.splitext(raw)[0]) or "file"
+    shown = f"{base}.{ext}" if ext else base
 
-    head = file_storage.stream.read(16)
+    allowed = allowed or current_app.config["ALLOWED_EXTENSIONS"]
+    if ext not in allowed or ext not in CHECKS:
+        raise UploadError(f"'{shown}' is not a supported file type.")
+
+    size = _size(file_storage)
+    if size == 0:
+        raise UploadError(f"'{shown}' is empty.")
+    limit = max_bytes or current_app.config["MAX_FILE_MB"] * 1024 * 1024
+    if size > limit:
+        raise UploadError(f"'{shown}' is bigger than {limit // (1024 * 1024)} MB.")
+
     file_storage.stream.seek(0)
-    if not _matches_signature(ext, head):
-        raise UploadError(f"'{secure_filename(raw_name) or raw_name}' is not a valid .{ext} file.")
+    head = file_storage.stream.read(2048)
+    file_storage.stream.seek(0)
+    if not CHECKS[ext](head):
+        raise UploadError(f"'{shown}' is not a genuine .{ext} file.")
 
-    original = secure_filename(raw_name) or f"upload.{ext}"
     stored = f"{uuid.uuid4().hex}.{ext}"  # never trust user-supplied names on disk
-
     folder = Path(current_app.config["UPLOAD_FOLDER"])
     folder.mkdir(parents=True, exist_ok=True)
     file_storage.save(folder / stored)
-    return stored, original
+    return SavedFile(stored, shown, size)
 
 
 def delete_upload(stored_name):
+    if not stored_name:
+        return
     try:
         (Path(current_app.config["UPLOAD_FOLDER"]) / stored_name).unlink(missing_ok=True)
     except OSError:
         current_app.logger.exception("Upload deletion failed")
+
+
+def human_size(num):
+    num = float(num or 0)
+    for unit in ("B", "KB", "MB", "GB"):
+        if num < 1024 or unit == "GB":
+            return f"{num:.0f} {unit}" if unit == "B" else f"{num:.1f} {unit}"
+        num /= 1024
 
 
 def normalize_phone(raw):
@@ -75,8 +135,50 @@ def normalize_phone(raw):
 
 
 def new_reference():
-    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no look-alike characters
     while True:
-        ref = "CW-" + "".join(secrets.choice(alphabet) for _ in range(6))
+        ref = "PH-" + secrets.token_hex(3).upper()
         if not db.session.execute(db.select(Order.id).filter_by(reference=ref)).first():
             return ref
+
+
+# ---- tiny in-memory rate limiter (per server process; best-effort protection) -------------
+def client_ip():
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[-1].strip()  # last hop = added by the host's proxy
+    return request.remote_addr or "unknown"
+
+
+class RateLimiter:
+    def __init__(self):
+        self._hits = defaultdict(list)
+        self._lock = threading.Lock()
+
+    def _recent(self, key, window):
+        cutoff = time.time() - window
+        self._hits[key] = [t for t in self._hits[key] if t > cutoff]
+        return self._hits[key]
+
+    def count(self, bucket, who, window):
+        with self._lock:
+            return len(self._recent((bucket, who), window))
+
+    def hit(self, bucket, who, window):
+        with self._lock:
+            self._recent((bucket, who), window).append(time.time())
+
+    def allow(self, bucket, who, limit, window):
+        """Record an attempt; False when over the limit."""
+        with self._lock:
+            hits = self._recent((bucket, who), window)
+            if len(hits) >= limit:
+                return False
+            hits.append(time.time())
+            return True
+
+    def reset(self, bucket, who):
+        with self._lock:
+            self._hits.pop((bucket, who), None)
+
+
+limiter = RateLimiter()

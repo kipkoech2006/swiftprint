@@ -1,42 +1,70 @@
 {% extends "base.html" %}
-{% block title %}SwiftPrint: wall decor and cyber cafe services{% endblock %}
+{% block title %}{{ config.SHOP_NAME }}: printing, editing and wall decor{% endblock %}
 {% block content %}
-<section class="bg-white border-b border-ink/10">
-  <div class="max-w-5xl mx-auto px-4 py-12 sm:py-20 grid sm:grid-cols-5 gap-8 items-center">
-    <div class="sm:col-span-3">
-      <h1 class="font-display font-extrabold text-4xl sm:text-6xl leading-[1.02] tracking-tight">Send the file from your phone. Collect it done.</h1>
-      <p class="mt-5 text-lg text-ink/70 max-w-md">Wall stickers and portraits, document printing, editing, scanning and official applications. No sign-up, just your WhatsApp number.</p>
-      <div class="mt-7 flex flex-wrap gap-3">
-        <a href="{{ url_for('gallery') }}" class="bg-mag text-white font-bold rounded-full px-6 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">Start an order</a>
-        <a href="#services" class="font-bold rounded-full px-6 py-3 border border-ink/20 hover:bg-chalk focus-visible:outline focus-visible:outline-2 focus-visible:outline-mag">See services</a>
+<section class="hero">
+  <div class="container hero-in">
+    <div>
+      <h1>Send the file from your phone. Collect it done.</h1>
+      <p class="lead">Printing, editing, scanning, wall stickers and portraits. No sign-up, just your WhatsApp number.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="{{ url_for('main.checkout') }}">Start an order</a>
+        <a class="btn btn-outline" href="#services">See services</a>
       </div>
     </div>
-    <div class="sm:col-span-2 flex justify-center" aria-hidden="true">
-      <svg viewBox="0 0 220 220" class="w-48 sm:w-full max-w-[260px]">
-        <circle class="reg-circle" cx="95" cy="90" r="70" fill="#00b8ec"/>
-        <circle class="reg-circle" cx="130" cy="90" r="70" fill="#e0267f"/>
+    <div class="center" aria-hidden="true">
+      <svg viewBox="0 0 220 220" width="240" height="240" style="max-width:100%">
+        <circle class="reg-circle" cx="95" cy="90" r="70" fill="#00b8ec"/><circle class="reg-circle" cx="130" cy="90" r="70" fill="#e0267f"/>
         <circle class="reg-circle" cx="112" cy="125" r="70" fill="#ffd23f"/>
-        <g stroke="#16213a" stroke-width="1.5" fill="none"><circle cx="190" cy="30" r="10"/><path d="M190 14v32M174 30h32"/></g>
+        <g stroke="currentColor" stroke-width="1.5" fill="none"><circle cx="190" cy="30" r="10"/><path d="M190 14v32M174 30h32"/></g>
       </svg>
     </div>
   </div>
 </section>
 
-<div id="services" class="max-w-5xl mx-auto px-4 py-12 space-y-12">
-  {% for group, title, sub in [("decor", "Wall decor", "Made to order from your photos and designs."), ("cafe", "Cyber cafe services", "Upload your documents and we handle the rest.")] %}
-  <section>
-    <h2 class="font-display font-bold text-2xl">{{ title }}</h2>
-    <p class="text-ink/60 mt-1">{{ sub }}</p>
-    <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {% for s in catalog if s.group == group %}
-      <a href="{{ url_for('gallery', service=s.id) if s.id in ('sticker', 'portrait') else url_for('checkout', service=s.id) }}" class="group bg-white rounded-xl border border-ink/10 p-5 hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-mag transition-colors">
-        <h3 class="font-display font-bold text-lg">{{ s.name }}</h3>
-        <p class="text-sm text-ink/65 mt-1">{{ s.blurb }}</p>
-        <p class="mt-4 text-sm font-medium">From KES {{ min_price(s.id) }} per {{ s.unit }}</p>
-      </a>
+<div class="container">
+  <section class="section">
+    <h2>How it works</h2>
+    <ol class="steps mt-s">
+      <li><h3>Choose a service</h3><p class="muted">Pick what you need and your options.</p></li>
+      <li><h3>Upload your files</h3><p class="muted">Documents, spreadsheets, slides or photos to print, or edit and print.</p></li>
+      <li><h3>We confirm on WhatsApp</h3><p class="muted">Final price and pickup or delivery. Pay in person.</p></li>
+    </ol>
+  </section>
+
+  <section class="section" id="services">
+    {% if not services %}
+    <div class="empty"><h3>Services are being set up</h3><p>Please check back soon.</p></div>
+    {% endif %}
+    {% for group, title, sub in groups %}
+      {% set items = services|selectattr('group', 'equalto', group)|list %}
+      {% if items %}
+      <h2 class="mt">{{ title }}</h2><p class="muted">{{ sub }}</p>
+      <div class="grid g2 mt-s">
+        {% for s in items %}
+        <a class="card service-card" href="{{ url_for('main.checkout', service=s.id) }}">
+          <h3>{{ s.name }}</h3><p class="muted small">{{ s.blurb }}</p>
+          <p class="price">From KES {{ s.from_price }} per {{ s.unit }}</p>
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endfor %}
+  </section>
+
+  {% if designs %}
+  <section class="section">
+    <div class="row" style="align-items:center"><div><h2>Our designs</h2><p class="muted">Pick one and order it in a minute.</p></div>
+      <a class="btn btn-outline" href="{{ url_for('main.gallery') }}">See all designs</a></div>
+    <div class="grid g3 mt-s">
+      {% for d in designs %}
+      <article class="card design">
+        <div class="thumb"><img src="{{ url_for('main.display_image', image_id=d.id) }}" alt="{{ d.label }}" loading="lazy"></div>
+        <div class="body"><h3>{{ d.label }}</h3>
+          <a class="btn btn-primary btn-sm" href="{{ url_for('main.checkout', service=d.service_id or None, design=d.id) }}">Order this</a></div>
+      </article>
       {% endfor %}
     </div>
   </section>
-  {% endfor %}
+  {% endif %}
 </div>
 {% endblock %}

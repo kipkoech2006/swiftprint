@@ -1,6 +1,9 @@
 .env
 shop.db
+backend/shop.db
 venv/
 __pycache__/
 app/static/uploads/*
 !app/static/uploads/.gitkeep
+backend/app/static/uploads/*
+!backend/app/static/uploads/.gitkeep

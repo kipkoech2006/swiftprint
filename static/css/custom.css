@@ -1,4 +1,0 @@
-/* Small overrides that Tailwind utilities don't cover */
-.reg-circle { mix-blend-mode: multiply; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Track your order | {{ config.SHOP_NAME }}{% endblock %}
+{% block content %}
+<section class="container narrow page">
+  <h1>Track your order</h1>
+  <p class="muted">Enter your order number and the WhatsApp number you used.</p>
+  <form method="post" class="card mt" data-busy="Checking…">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field" style="margin-top:0"><label for="ref">Order number</label>
+      <input id="ref" name="ref" type="text" placeholder="PH-1A2B3C" value="{{ request.form.get('ref', '') }}" required autocapitalize="characters"></div>
+    <div class="field"><label for="whatsapp">WhatsApp number</label>
+      <input id="whatsapp" name="whatsapp" type="tel" placeholder="0712 345 678" value="{{ request.form.get('whatsapp', '') }}" required></div>
+    <p class="mt-s"><button class="btn btn-primary" type="submit">Check status</button></p>
+  </form>
+
+  {% if order %}
+  {% set shown = 'collected' if order.status == 'dismissed' else order.status %}
+  <div class="card mt">
+    <p class="small muted" style="margin:0">Order</p><h2>{{ order.reference }}</h2>
+    {% if shown == 'cancelled' %}
+      <p><span class="status cancelled">Cancelled</span></p>
+      <p class="muted">This order was cancelled. Message us if you think this is a mistake.</p>
+    {% else %}
+      {% set keys = steps|map(attribute=0)|list %}
+      <ol class="timeline" aria-label="Order progress">
+        {% for key, label in steps %}<li class="{{ 'done' if keys.index(key) <= keys.index(shown) }}">{{ label }}</li>{% endfor %}
+      </ol>
+    {% endif %}
+    <dl class="kv">
+      <dt>Service</dt><dd>{{ order.items[0].item_type if order.items else '' }}</dd>
+      <dt>Placed</dt><dd>{{ order.created_at.strftime('%d %b %Y, %H:%M') if order.created_at }}</dd>
+      {% if order.items and order.items[0].specs.get('estimated_total') is not none %}
+      <dt>Estimate</dt><dd>KES {{ order.items[0].specs.get('estimated_total') }} (final price confirmed on WhatsApp)</dd>{% endif %}
+    </dl>
+    {% if wa_link %}<p class="mt"><a class="btn btn-wa" href="{{ wa_link }}" target="_blank" rel="noopener">Message us</a></p>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

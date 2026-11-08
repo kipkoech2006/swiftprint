@@ -1,0 +1,55 @@
+{% extends "admin/base.html" %}
+{% block title %}Services &amp; prices{% endblock %}
+{% block content %}
+<h1>Services &amp; prices</h1>
+<p class="muted">Changes appear on the website straight away. Prices are estimates; payment is collected in person.</p>
+
+{% macro service_fields(s) %}
+  <div class="row">
+    <div class="field"><label>Service name</label><input type="text" name="name" maxlength="100" required value="{{ s.name if s else '' }}"></div>
+    <div class="field"><label>Group</label>
+      <select name="group_name"><option value="decor" {{ 'selected' if s and s.group_name == 'decor' }}>Wall decor</option><option value="cafe" {{ 'selected' if not s or s.group_name == 'cafe' }}>Cyber cafe</option></select></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Base price (KES)</label><input type="number" name="base_price" min="0" max="10000000" step="1" required value="{{ s.base_price if s else 0 }}"></div>
+    <div class="field"><label>Price unit (page, piece…)</label><input type="text" name="unit" maxlength="40" required value="{{ s.unit if s else 'item' }}"></div>
+    <div class="field"><label>Customer file upload</label>
+      <select name="files"><option value="required" {{ 'selected' if not s or s.files == 'required' }}>Required</option><option value="optional" {{ 'selected' if s and s.files == 'optional' }}>Optional</option><option value="none" {{ 'selected' if s and s.files == 'none' }}>No file</option></select></div>
+  </div>
+  <div class="field"><label>Description</label><textarea name="blurb" rows="2" maxlength="300">{{ s.blurb if s else '' }}</textarea></div>
+  <details class="field"><summary>Options and extra prices (advanced, JSON)</summary>
+    <p class="hint">Each choice has a price addition <code>add</code> in KES. A text box uses <code>"type": "text"</code>. Leave <code>[]</code> for no options.</p>
+    <textarea name="fields_json" rows="12" spellcheck="false" class="mono">{{ (s.fields if s else [])|tojson(indent=2) }}</textarea></details>
+{% endmacro %}
+
+<section class="card mb">
+  <details {{ 'open' if not services }}><summary><strong>+ Add a new service</strong></summary>
+    <form method="post" action="{{ url_for('admin.add_catalog_service') }}" data-busy="Adding…">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {{ service_fields(none) }}
+      <p class="mt-s"><button class="btn btn-primary" type="submit">Add service</button></p>
+    </form>
+  </details>
+</section>
+
+{% for s in services %}
+<section class="card mb">
+  <div class="row" style="align-items:center">
+    <h2 style="margin:0">{{ s.name }} {% if not s.is_active %}<span class="status">Hidden</span>{% endif %}</h2>
+    <form method="post" action="{{ url_for('admin.toggle_catalog_service', service_id=s.id) }}" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline btn-sm" type="submit">{{ 'Show on website' if not s.is_active else 'Hide from website' }}</button></form>
+  </div>
+  <form method="post" action="{{ url_for('admin.update_catalog_service', service_id=s.id) }}" data-busy="Saving…">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {{ service_fields(s) }}
+    <p class="mt-s"><button class="btn btn-dark" type="submit">Save service</button></p>
+  </form>
+  <form method="post" action="{{ url_for('admin.delete_catalog_service', service_id=s.id) }}" data-confirm="Delete the service “{{ s.name }}”? Past orders keep their details.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm" style="color:var(--err)" type="submit">Delete this service</button></form>
+</section>
+{% else %}
+<div class="empty"><h3>No services yet</h3><p>Add your first service above so customers can order.</p></div>
+{% endfor %}
+{% endblock %}

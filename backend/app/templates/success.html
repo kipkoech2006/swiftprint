@@ -1,8 +1,0 @@
-{% extends "base.html" %}
-{% block content %}
-<h1>Thank you, {{ order.customer_name }}!</h1>
-<p>Your order reference is <strong>{{ order.reference }}</strong>. Keep it for delivery and enquiries.</p>
-<p>No payment was taken online. Payment is collected in person after delivery.</p>
-{% if wa_link %}<p><a class="btn" href="{{ wa_link }}" target="_blank" rel="noopener">Confirm on WhatsApp</a></p>{% endif %}
-<p><a href="{{ url_for('main.order_form') }}">Place another order</a></p>
-{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "admin/base.html" %}
+{% block title %}Order {{ order.reference }}{% endblock %}
+{% block content %}
+<p><a class="btn btn-outline btn-sm" href="{{ url_for('admin.dashboard') }}">&laquo; All orders</a></p>
+<div class="row" style="align-items:center">
+  <h1 style="margin:0">{{ order.reference }} <span class="status {{ order.status }}">{{ order.status_label }}</span></h1>
+</div>
+<p class="muted">Placed {{ order.created_at.strftime('%d %b %Y at %H:%M') if order.created_at }}</p>
+
+<div class="two">
+  <div>
+    {% for it in order.items %}
+    <section class="card mb">
+      <h2>{{ it.item_type }}{% if it.quantity > 1 %} × {{ it.quantity }}{% endif %}</h2>
+      {% set hidden_keys = ('notes', 'design', 'design_id', 'stock_design', 'estimated_unit_price', 'estimated_total') %}
+      <dl class="kv">
+        {% for key, value in it.specs.items() if key not in hidden_keys and value %}
+        <dt>{{ key|replace('_', ' ')|title }}</dt><dd>{{ value }}</dd>
+        {% endfor %}
+        {% set design_name = it.specs.get('design') or it.specs.get('stock_design') %}
+        {% if design_name %}<dt>Chosen design</dt><dd>{{ design_name }}</dd>{% endif %}
+        {% if it.specs.get('estimated_total') is not none %}
+        <dt>Estimate</dt><dd>KES {{ it.specs.get('estimated_unit_price') }} each · <strong>KES {{ it.specs.get('estimated_total') }} total</strong></dd>{% endif %}
+      </dl>
+      {% if it.specs.get('notes') or order.notes %}
+      <h3 class="mt">Customer instructions</h3><p style="white-space:pre-wrap">{{ it.specs.get('notes') or order.notes }}</p>
+      {% endif %}
+    </section>
+    {% endfor %}
+
+    <section class="card">
+      <div class="row" style="align-items:center"><h2 style="margin:0">Files to print or edit ({{ order.file_count }})</h2>
+        {% if order.file_count > 1 %}<a class="btn btn-dark btn-sm" href="{{ url_for('admin.download_zip', order_id=order.id) }}">Download all (ZIP)</a>{% endif %}</div>
+      {% if order.file_count == 0 %}
+        <p class="muted mt-s">The customer did not upload any files for this order.</p>
+      {% else %}
+      <ul class="file-list">
+        {% for f in order.files %}
+        <li>
+          {% if f.is_image %}<img src="{{ url_for('admin.preview_file', file_id=f.id) }}" alt="" width="44" height="44" style="object-fit:cover;border-radius:8px">{% endif %}
+          <span class="nm">{{ f.original_filename }}</span><span class="sz">{{ f.size_bytes|filesize }}</span>
+          <a class="btn btn-dark btn-sm" href="{{ url_for('admin.download_file', file_id=f.id) }}">Download</a>
+        </li>
+        {% endfor %}
+        {% for it in legacy %}
+        <li><span class="nm">{{ it.original_filename }}</span><span class="sz">older order</span>
+          <a class="btn btn-dark btn-sm" href="{{ url_for('admin.download', item_id=it.id) }}">Download</a></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside>
+    <section class="card mb">
+      <h2>Customer</h2>
+      <dl class="kv"><dt>Name</dt><dd>{{ order.customer_name }}</dd><dt>WhatsApp</dt><dd>{{ order.whatsapp_number }}</dd></dl>
+      <div class="actions"><a class="btn btn-wa btn-sm" href="{{ chat_link }}" target="_blank" rel="noopener">Open WhatsApp</a>
+        <a class="btn btn-outline btn-sm" href="{{ update_link }}" target="_blank" rel="noopener">Send status update</a></div>
+      <p class="hint">“Send status update” opens WhatsApp with a ready-made message for the current status.</p>
+    </section>
+
+    <section class="card mb">
+      <h2>Status</h2>
+      <form method="post" action="{{ url_for('admin.update_status', order_id=order.id) }}" data-busy="Saving…">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="status" class="visually-hidden">Status</label>
+        <select id="status" name="status">{% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s == order.status }}>{{ labels[s] }}</option>{% endfor %}</select>
+        <p class="mt-s"><button class="btn btn-dark btn-block" type="submit">Save status</button></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Finish</h2>
+      {% if order.status != 'dismissed' %}
+      <form method="post" action="{{ url_for('admin.dismiss_order', order_id=order.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline btn-block" type="submit">Dismiss (hide from Active)</button>
+      </form>
+      {% else %}
+      <p class="muted small">This order is dismissed. Deleting removes the order and all its files for good.</p>
+      <form method="post" action="{{ url_for('admin.delete_order', order_id=order.id) }}" data-confirm="Permanently delete this order and all its uploaded files?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-danger btn-block" type="submit">Delete permanently</button>
+      </form>
+      {% endif %}
+    </section>
+  </aside>
+</div>
+{% endblock %}

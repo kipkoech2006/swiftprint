@@ -1,0 +1,58 @@
+{% extends "admin/base.html" %}
+{% block title %}Orders{% endblock %}
+{% block content %}
+<h1>Orders</h1>
+
+<div class="stats mb">
+  <a class="card stat" href="{{ url_for('admin.dashboard', status='new') }}"><span class="muted small">New</span><b>{{ counts.get('new', 0) }}</b></a>
+  <a class="card stat" href="{{ url_for('admin.dashboard', status='in_progress') }}"><span class="muted small">In progress</span><b>{{ counts.get('in_progress', 0) }}</b></a>
+  <a class="card stat" href="{{ url_for('admin.dashboard', status='ready') }}"><span class="muted small">Ready</span><b>{{ counts.get('ready', 0) }}</b></a>
+  <a class="card stat" href="{{ url_for('admin.dashboard', status='all') }}"><span class="muted small">All orders</span><b>{{ total }}</b></a>
+</div>
+
+<form method="get" class="row mb">
+  <input type="hidden" name="status" value="{{ current }}">
+  <div><label for="q" class="visually-hidden">Search</label>
+    <input id="q" type="search" name="q" value="{{ q }}" placeholder="Search name, order number or WhatsApp number"></div>
+  <button class="btn btn-dark" type="submit">Search</button>
+  {% if q %}<a class="btn btn-outline" href="{{ url_for('admin.dashboard', status=current) }}">Clear</a>{% endif %}
+</form>
+
+<div class="tabs mb">
+  <a class="chip {{ 'active' if current == 'active' }}" href="{{ url_for('admin.dashboard', status='active', q=q or None) }}">Active ({{ active_total }})</a>
+  {% for s in statuses %}
+  <a class="chip {{ 'active' if current == s }}" href="{{ url_for('admin.dashboard', status=s, q=q or None) }}">{{ labels[s] }} ({{ counts.get(s, 0) }})</a>
+  {% endfor %}
+  <a class="chip {{ 'active' if current == 'all' }}" href="{{ url_for('admin.dashboard', status='all', q=q or None) }}">All</a>
+</div>
+
+{% if page.items %}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Order</th><th>Customer</th><th>Service</th><th>Files</th><th>Status</th><th>Placed</th><th></th></tr></thead>
+    <tbody>
+    {% for o in page.items %}
+      <tr>
+        <td><a href="{{ url_for('admin.order_detail', order_id=o.id) }}"><strong>{{ o.reference }}</strong></a></td>
+        <td>{{ o.customer_name }}<br><a class="small muted" href="https://wa.me/{{ o.whatsapp_number }}" target="_blank" rel="noopener">{{ o.whatsapp_number }}</a></td>
+        <td>{{ o.items[0].item_type if o.items }}{% if o.items and o.items[0].quantity > 1 %} × {{ o.items[0].quantity }}{% endif %}</td>
+        <td>{{ o.file_count }}</td>
+        <td><span class="status {{ o.status }}">{{ o.status_label }}</span></td>
+        <td class="small muted">{{ o.created_at.strftime('%d %b, %H:%M') if o.created_at }}</td>
+        <td><a class="btn btn-outline btn-sm" href="{{ url_for('admin.order_detail', order_id=o.id) }}">Open</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if page.pages > 1 %}
+<div class="pager">
+  {% if page.has_prev %}<a class="btn btn-outline btn-sm" href="{{ url_for('admin.dashboard', page=page.prev_num, status=current, q=q or None) }}">&laquo; Previous</a>{% endif %}
+  <span class="muted small">Page {{ page.page }} of {{ page.pages }}</span>
+  {% if page.has_next %}<a class="btn btn-outline btn-sm" href="{{ url_for('admin.dashboard', page=page.next_num, status=current, q=q or None) }}">Next &raquo;</a>{% endif %}
+</div>
+{% endif %}
+{% else %}
+<div class="empty"><h3>No orders here</h3><p>{% if q %}Nothing matches “{{ q }}”.{% else %}New orders appear here as customers place them.{% endif %}</p></div>
+{% endif %}
+{% endblock %}

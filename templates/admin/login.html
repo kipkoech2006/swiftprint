@@ -1,0 +1,14 @@
+{% extends "admin/base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<div class="login-box card">
+  <h1 style="font-size:1.8rem">Admin login</h1>
+  <p class="muted">Enter the admin password to manage orders, designs and prices.</p>
+  <form method="post" data-busy="Checking…">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field" style="margin-top:0"><label for="password">Password</label>
+      <input id="password" type="password" name="password" required autofocus autocomplete="current-password"></div>
+    <p class="mt-s"><button class="btn btn-dark btn-block" type="submit">Log in</button></p>
+  </form>
+</div>
+{% endblock %}

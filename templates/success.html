@@ -1,15 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Order received | SwiftPrint{% endblock %}
+{% block title %}Order received | {{ config.SHOP_NAME }}{% endblock %}
 {% block content %}
-<section class="max-w-md mx-auto px-4 py-16 text-center">
-  <div class="mx-auto w-14 h-14 rounded-full bg-sun flex items-center justify-center" aria-hidden="true">
-    <svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="#16213a" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>
+<section class="container narrow page center">
+  <div style="width:64px;height:64px;border-radius:50%;background:var(--sun);display:grid;place-items:center;margin:1rem auto" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#16213a" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>
   </div>
-  <h1 class="font-display font-extrabold text-3xl mt-6">Order received</h1>
-  <p class="mt-3 text-ink/70">Your order number is</p>
-  <p class="font-display font-extrabold text-3xl mt-1 select-all">{{ ref }}</p>
-  <p class="mt-5 text-ink/70">We will message you on WhatsApp to confirm the price and pickup time.</p>
-  <a href="https://wa.me/{{ shop }}?text={{ ('Hello, my order number is ' ~ ref)|urlencode }}" class="mt-7 inline-block bg-ink text-white font-bold rounded-full px-6 py-3">Message us about this order</a>
-  <div class="mt-4"><a href="{{ url_for('index') }}" class="text-sm underline">Place another order</a></div>
+  <h1>Order received</h1>
+  <p class="muted">Your order number is</p>
+  <p class="total" style="font-size:2.2rem;user-select:all">{{ order.reference }}</p>
+  <p>We will message you on WhatsApp to confirm the final price and delivery details.</p>
+  <p class="muted small">No online payment was taken. Payment is collected in person after delivery. Keep your order number to track your order.</p>
+  <div class="actions" style="justify-content:center">
+    {% if wa_link %}<a class="btn btn-wa" href="{{ wa_link }}" target="_blank" rel="noopener">Message us about this order</a>{% endif %}
+    <a class="btn btn-outline" href="{{ url_for('main.track') }}">Track this order</a>
+    <a class="btn btn-outline" href="{{ url_for('main.checkout') }}">Place another order</a>
+  </div>
 </section>
 {% endblock %}

@@ -1,0 +1,103 @@
+{% extends "admin/base.html" %}
+{% block title %}Designs{% endblock %}
+{% block content %}
+<h1>Designs</h1>
+<p class="muted">The website shows <strong>no designs</strong> until you upload them here. New uploads are saved as <strong>drafts</strong> so you can review them first. Customers only see designs you publish.</p>
+
+<section class="card mb">
+  <h2>Upload designs</h2>
+  <form method="post" action="{{ url_for('admin.add_display_image') }}" enctype="multipart/form-data" data-busy="Uploading… please wait">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field" style="margin-top:0">
+      <label for="images">Photos (JPG, PNG or WEBP). You can pick many at once.</label>
+      <input id="images" type="file" name="images" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple required data-preview="upload-previews">
+      <div id="upload-previews" class="thumbs"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="category_id">Category</label>
+        <select id="category_id" name="category_id" required>
+          {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          <option value="new" {{ 'selected' if not categories }}>+ New category…</option>
+        </select></div>
+      <div class="field"><label for="new_category">New category name</label>
+        <input id="new_category" type="text" name="new_category" maxlength="80" placeholder="e.g. Nature, Kids, Quotes"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="service_id">For which service?</label>
+        <select id="service_id" name="service_id"><option value="">Any service</option>
+          {% for sid, sname in services %}<option value="{{ sid }}">{{ sname }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="title">Title (optional, for one photo)</label>
+        <input id="title" type="text" name="title" maxlength="120" placeholder="Defaults to the file name"></div>
+    </div>
+    <div class="field"><label for="description">Short description (optional)</label>
+      <input id="description" type="text" name="description" maxlength="300"></div>
+    <div class="field"><label class="check"><input type="checkbox" name="publish" value="1"> Publish immediately (skip the draft review)</label></div>
+    <p class="mt-s"><button class="btn btn-primary" type="submit">Upload</button></p>
+  </form>
+</section>
+
+<section class="card mb">
+  <h2>Categories</h2>
+  <form method="post" action="{{ url_for('admin.add_category') }}" class="row">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label for="name" class="visually-hidden">Category name</label><input id="name" type="text" name="name" maxlength="80" placeholder="New category name" required></div>
+    <button class="btn btn-dark" type="submit">Add category</button>
+  </form>
+  <div class="chips mt-s">
+    {% for c in categories %}
+    <span class="chip">{{ c.name }} ({{ c.images|length }})
+      {% if not c.images %}
+      <form method="post" action="{{ url_for('admin.delete_category', category_id=c.id) }}" class="inline" data-confirm="Delete the empty category “{{ c.name }}”?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-sm" style="min-height:28px;padding:0 .5rem" aria-label="Delete {{ c.name }}">&times;</button></form>
+      {% endif %}</span>
+    {% else %}<span class="muted small">No categories yet.</span>{% endfor %}
+  </div>
+</section>
+
+{% if drafts %}
+<div class="notice mb row" style="align-items:center">
+  <span><strong>{{ drafts }}</strong> draft{{ '' if drafts == 1 else 's' }} waiting for your review. Customers cannot see them yet.</span>
+  <form method="post" action="{{ url_for('admin.publish_all') }}" data-confirm="Publish all {{ drafts }} drafts to the website?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-primary btn-sm" type="submit">Publish all drafts</button></form>
+</div>
+{% endif %}
+
+{% set has_any = categories|map(attribute='images')|map('length')|sum %}
+{% if not has_any %}
+<div class="empty"><h3>No designs uploaded yet</h3><p>The public gallery is empty until you upload and publish designs above.</p></div>
+{% endif %}
+
+{% for c in categories if c.images %}
+<h2 class="mt">{{ c.name }}</h2>
+<div class="grid g3">
+  {% for d in c.images %}
+  <article class="card design" id="d{{ d.id }}">
+    <div class="thumb"><img src="{{ url_for('main.display_image', image_id=d.id) }}" alt="{{ d.label }}" loading="lazy">
+      <span class="tag {{ '' if d.is_published else 'draft' }}">{{ 'Published' if d.is_published else 'Draft' }}</span></div>
+    <div class="body">
+      <strong>{{ d.label }}</strong>
+      <form method="post" action="{{ url_for('admin.toggle_publish', image_id=d.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn {{ 'btn-outline' if d.is_published else 'btn-primary' }} btn-sm btn-block" type="submit">{{ 'Hide from website' if d.is_published else 'Publish' }}</button>
+      </form>
+      <details><summary class="small">Edit details</summary>
+        <form method="post" action="{{ url_for('admin.update_display_image', image_id=d.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="t{{ d.id }}" class="small">Title</label><input id="t{{ d.id }}" type="text" name="title" value="{{ d.label }}" maxlength="120" required>
+          <label for="ds{{ d.id }}" class="small mt-s">Description</label><input id="ds{{ d.id }}" type="text" name="description" value="{{ d.description }}" maxlength="300">
+          <label for="c{{ d.id }}" class="small mt-s">Category</label>
+          <select id="c{{ d.id }}" name="category_id">{% for cc in categories %}<option value="{{ cc.id }}" {{ 'selected' if cc.id == d.category_id }}>{{ cc.name }}</option>{% endfor %}</select>
+          <label for="s{{ d.id }}" class="small mt-s">Service</label>
+          <select id="s{{ d.id }}" name="service_id"><option value="">Any service</option>
+            {% for sid, sname in services %}<option value="{{ sid }}" {{ 'selected' if sid == d.service_id }}>{{ sname }}</option>{% endfor %}</select>
+          <p class="mt-s"><button class="btn btn-dark btn-sm" type="submit">Save</button></p>
+        </form>
+      </details>
+      <form method="post" action="{{ url_for('admin.delete_display_image', image_id=d.id) }}" data-confirm="Delete “{{ d.label }}” permanently?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm" style="color:var(--err)" type="submit">Delete</button></form>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endfor %}
+{% endblock %}

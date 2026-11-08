@@ -1,142 +1,108 @@
 {% extends "base.html" %}
-{% block title %}Place your order | SwiftPrint{% endblock %}
+{% block title %}Place your order | {{ config.SHOP_NAME }}{% endblock %}
+{% block head %}<script defer src="{{ url_for('static', filename='js/checkout.js') }}"></script>{% endblock %}
 {% block content %}
-<form method="post" action="{{ url_for('submit') }}" enctype="multipart/form-data" novalidate
-      x-data="checkout({{ catalog|tojson }}, {{ selected|tojson }}, {{ stock_item|tojson }}, {{ custom|tojson }})" @submit="validate($event)"
-      class="max-w-2xl mx-auto px-4 py-8 pb-32">
-  <h1 class="font-display font-extrabold text-3xl">Place your order</h1>
+<div class="container narrow page">
+  <h1>Place your order</h1>
+  <p class="muted">No online payment. We confirm the final price on WhatsApp and you pay in person.</p>
 
-  <section x-show="stockItem" x-cloak class="mt-5 flex gap-4 rounded-xl border border-ink/10 bg-white p-4">
-    <div class="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-chalk" x-data="{ imageFailed: false }">
-      <img x-show="!imageFailed" x-on:error="imageFailed = true" :src="stockItem ? '{{ url_for('static', filename='img/stock/') }}' + stockItem.image : ''" :alt="stockItem ? stockItem.title + ' design' : ''" class="h-full w-full object-cover">
-      <div x-show="imageFailed" x-cloak role="img" :aria-label="stockItem ? stockItem.title + ' design preview' : ''" class="absolute inset-0 flex items-center justify-center bg-sun/60 p-2 text-center text-xs font-bold" x-text="stockItem ? stockItem.title : ''"></div>
-    </div>
-    <div class="min-w-0">
-      <p class="text-xs font-medium uppercase tracking-wide text-ink/55">Selected design</p>
-      <h2 class="font-display font-bold" x-text="stockItem ? stockItem.title : ''"></h2>
-      <a :href="stockItem ? '/gallery?service=' + stockItem.service : '{{ url_for('gallery') }}'" class="mt-1 inline-block text-sm underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-mag">Change design</a>
-    </div>
-  </section>
+  {% if not services %}
+  <div class="empty mt"><h3>Ordering is not open yet</h3><p>Services are being set up. Please check back soon.</p></div>
+  {% else %}
 
-  <!-- 1. Service -->
-  <fieldset class="mt-6">
-    <legend class="font-bold mb-2">What do you need?</legend>
-    <div class="grid grid-cols-2 gap-2">
-      <template x-for="s in catalog" :key="s.id">
-        <label class="cursor-pointer">
-          <input type="radio" class="peer sr-only" name="service" :value="s.id" :checked="id === s.id" @change="pick(s.id)">
-          <span class="block h-full rounded-xl border border-ink/15 bg-white p-3 text-sm font-medium peer-checked:border-ink peer-checked:ring-2 peer-checked:ring-ink peer-focus-visible:ring-2 peer-focus-visible:ring-mag" x-text="s.name"></span>
-        </label>
-      </template>
-    </div>
-    <p x-show="errors.service" x-cloak class="mt-2 text-sm text-red-700" x-text="errors.service"></p>
-  </fieldset>
-
-  <!-- 2. Specifications (changes with the service) -->
-  <section x-show="svc" x-cloak class="mt-8 space-y-5">
-    <h2 class="font-bold">Your specifications</h2>
-    <template x-for="f in (svc ? svc.fields : [])" :key="id + f.name">
-      <div>
-        <label class="block text-sm font-medium mb-1" :for="'f_' + f.name" x-text="f.label"></label>
-        <template x-if="f.type === 'select'">
-          <select :id="'f_' + f.name" :name="'f_' + f.name" x-model="values[f.name]" class="w-full rounded-lg border border-ink/20 bg-white px-3 py-3 focus:outline focus:outline-2 focus:outline-mag">
-            <template x-for="o in f.options" :key="o.v"><option :value="o.v" x-text="f.show_full_price ? o.l + ' (KES ' + o.price + ' each)' : o.l + (o.add ? ' (+KES ' + o.add + ')' : '')"></option></template>
-          </select>
-        </template>
-        <template x-if="f.type === 'text'">
-          <input type="text" :id="'f_' + f.name" :name="'f_' + f.name" x-model="values[f.name]" class="w-full rounded-lg border border-ink/20 bg-white px-3 py-3 focus:outline focus:outline-2 focus:outline-mag">
-        </template>
-        <p x-show="f.hint" class="text-xs text-ink/55 mt-1" x-text="f.hint"></p>
-      </div>
-    </template>
-
-    <div>
-      <label class="block text-sm font-medium mb-1" for="qty" x-text="'How many ' + svc.unit + 's?'"></label>
-      <div class="inline-flex items-center rounded-lg border border-ink/20 bg-white">
-        <button type="button" class="px-4 py-3 text-lg" aria-label="Fewer" @click="qty = Math.max(1, qty - 1)">&minus;</button>
-        <input id="qty" name="qty" type="number" min="1" x-model.number="qty" class="w-20 text-center py-3 border-x border-ink/15 focus:outline-none">
-        <button type="button" class="px-4 py-3 text-lg" aria-label="More" @click="qty++">+</button>
-      </div>
-    </div>
-
-    <!-- 3. Files -->
-    <div x-show="svc.files !== 'none'">
-      <label class="block text-sm font-medium mb-1" for="files"
-             x-text="svc.group === 'decor' ? (stockItem ? 'Add a reference photo (optional)' : 'Upload your inspiration photo or design') : (svc.files === 'optional' ? 'Upload supporting documents (optional)' : 'Upload your document')"></label>
-      <p x-show="svc.group === 'decor' && custom" class="mb-2 text-sm text-ink/65">Send us a photo, screenshot or sketch of what you want. We will confirm the final look on WhatsApp.</p>
-      <p x-show="svc.group === 'decor' && stockItem" class="mb-2 text-sm text-ink/65">You can add a reference photo, or continue with this stock design.</p>
-      <input id="files" name="files" type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.heic,.webp" class="peer sr-only"
-             @change="fileNames = Array.from($event.target.files).map(f => f.name)">
-      <label for="files" class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-ink/25 bg-white px-4 py-8 text-center cursor-pointer hover:border-ink peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-mag">
-        <span class="font-medium" x-text="fileNames.length ? fileNames.length + ' file(s) selected' : 'Tap to choose files'"></span>
-        <span class="text-xs text-ink/55 mt-1" x-text="fileNames.length ? fileNames.join(', ') : 'PDF, Word, JPG or PNG. Up to 50 MB in total.'"></span>
-      </label>
-      <p x-show="svc.group === 'decor' && !stockItem" class="mt-2 text-sm"><a :href="'{{ url_for('gallery') }}?service=' + id" class="underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-mag">Browse our stock designs instead</a></p>
-      <p x-show="errors.files" x-cloak class="mt-2 text-sm text-red-700" x-text="errors.files"></p>
-    </div>
-    <p x-show="svc.files === 'none'" class="text-sm text-ink/65 bg-white rounded-lg border border-ink/10 p-3">Bring your papers to the shop. We scan them and send the result to your WhatsApp.</p>
-
-    <div>
-      <label class="block text-sm font-medium mb-1" for="notes">Anything we should know? (optional)</label>
-      <textarea id="notes" name="notes" rows="3" class="w-full rounded-lg border border-ink/20 bg-white px-3 py-3 focus:outline focus:outline-2 focus:outline-mag"></textarea>
-    </div>
-
-    <!-- 4. Contact -->
-    <div>
-      <label class="block text-sm font-medium mb-1" for="whatsapp">Your WhatsApp number</label>
-      <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="0712 345 678" x-model="phone"
-             class="w-full rounded-lg border bg-white px-3 py-3 focus:outline focus:outline-2 focus:outline-mag" :class="errors.phone ? 'border-red-600' : 'border-ink/20'">
-      <p x-show="errors.phone" x-cloak class="mt-1 text-sm text-red-700" x-text="errors.phone"></p>
-      <p x-show="!errors.phone" class="text-xs text-ink/55 mt-1">We use this only to confirm and deliver your order.</p>
-    </div>
-  </section>
-
-  <input type="hidden" name="stock_id" :value="stockItem ? stockItem.id : ''">
-  <p x-show="!svc" class="mt-8 text-ink/60">Choose a service above to see its options.</p>
-
-  <!-- Sticky summary -->
-  <div x-show="svc" x-cloak class="fixed bottom-0 inset-x-0 bg-white border-t border-ink/10">
-    <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-      <div>
-        <p class="text-xs text-ink/60">Estimated total</p>
-        <p class="font-display font-extrabold text-xl" x-text="'KES ' + total().toLocaleString()"></p>
-      </div>
-      <button type="submit" class="bg-mag text-white font-bold rounded-full px-6 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">Send order</button>
-    </div>
+  <p class="label mt">What do you need?</p>
+  <div class="chips">
+    {% for s in services %}
+    <a class="chip {{ 'active' if svc and svc.id == s.id }}" href="{{ url_for('main.checkout', service=s.id, design=design.id if design else None) }}" {% if svc and svc.id == s.id %}aria-current="true"{% endif %}>{{ s.name }}</a>
+    {% endfor %}
   </div>
-</form>
 
-<script>
-document.addEventListener('alpine:init', () => {
-  Alpine.data('checkout', (catalog, initial, selectedStock, customFlag) => ({
-    catalog, id: initial, stockItem: selectedStock, custom: Boolean(customFlag || !selectedStock), values: {}, qty: 1, phone: '', fileNames: [], errors: {},
-    init() { if (this.id) this.pick(this.id); },
-    get svc() { return this.catalog.find(s => s.id === this.id) || null; },
-    pick(id) {
-      if (id !== this.id) {
-        this.stockItem = null;
-        this.custom = true;
-      }
-      this.id = id; this.values = {}; this.qty = 1; this.fileNames = []; this.errors = {};
-      const el = document.getElementById('files'); if (el) el.value = '';
-      this.svc.fields.forEach(f => { this.values[f.name] = f.type === 'select' ? f.default : ''; });
-    },
-    total() {
-      if (!this.svc) return 0;
-      let unit = this.stockItem && this.stockItem.price != null ? this.stockItem.price : this.svc.base;
-      this.svc.fields.filter(f => f.type === 'select').forEach(f => {
-        const o = f.options.find(o => o.v === this.values[f.name]); if (o) unit += o.add;
-      });
-      return unit * Math.max(1, this.qty || 1);
-    },
-    validate(e) {
-      this.errors = {};
-      if (!this.svc) this.errors.service = 'Choose a service to continue.';
-      if (this.svc && this.svc.files === 'required' && !this.stockItem && !this.fileNames.length) this.errors.files = 'Upload at least one file.';
-      if (!/^(?:\+?254|0)[71]\d{8}$/.test(this.phone.replace(/[\s-]/g, ''))) this.errors.phone = 'Enter a Kenyan number, for example 0712 345 678.';
-      if (Object.keys(this.errors).length) e.preventDefault();
-    }
-  }));
-});
-</script>
+  {% if not svc %}
+  <p class="muted mt">Choose a service above to see its options.</p>
+  {% else %}
+
+  {% if design %}
+  <div class="card picked mt">
+    <img src="{{ url_for('main.display_image', image_id=design.id) }}" alt="{{ design.label }}">
+    <div><p class="small muted" style="margin:0">Selected design</p><h3 style="margin:0">{{ design.label }}</h3>
+      <a class="small" href="{{ url_for('main.gallery') }}">Change design</a></div>
+  </div>
+  {% endif %}
+
+  <form id="order-form" method="post" action="{{ url_for('main.submit') }}" enctype="multipart/form-data" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="service" value="{{ svc.id }}">
+    <input type="hidden" name="design_id" value="{{ design.id if design else '' }}">
+    <div class="hp" aria-hidden="true"><label>Leave empty <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+
+    <div id="form-errors" class="alert-box" role="alert" {% if not get_flashed_messages() %}hidden{% endif %}></div>
+
+    <h2 class="mt">Your options</h2>
+    {% for f in svc.fields %}
+    <div class="field">
+      <label for="f_{{ f.name }}">{{ f.label }}</label>
+      {% if f.type == 'select' %}
+        {% set current = form.get('f_' ~ f.name) or f.default %}
+        <select id="f_{{ f.name }}" name="f_{{ f.name }}" data-spec>
+          {% for o in f.options %}
+          <option value="{{ o.v }}" data-add="{{ o.add }}" {{ 'selected' if o.v == current }}>{{ o.l }}{% if f.show_full_price %} (KES {{ o.price }} each){% elif o.add %} (+KES {{ o.add }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <input type="text" id="f_{{ f.name }}" name="f_{{ f.name }}" value="{{ form.get('f_' ~ f.name, '') }}" maxlength="500">
+      {% endif %}
+      {% if f.hint %}<p class="hint">{{ f.hint }}</p>{% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="field">
+      <label for="qty">How many {{ svc.unit }}s?</label>
+      <div class="qty">
+        <button type="button" data-qty="-1" aria-label="Fewer">&minus;</button>
+        <input id="qty" name="qty" type="number" min="1" value="{{ form.get('qty', 1) }}" inputmode="numeric">
+        <button type="button" data-qty="1" aria-label="More">+</button>
+      </div>
+    </div>
+
+    {% if svc.files != 'none' %}
+    <div class="field">
+      <label for="files">{% if svc.files == 'required' and not design %}Upload your files{% else %}Upload your files (optional){% endif %}</label>
+      <p class="hint" style="margin:0 0 .5rem">Anything you want printed, or edited and printed: documents, spreadsheets, slides, photos. Up to {{ max_files }} files, {{ max_file_mb }} MB each.</p>
+      <input id="files" name="files" type="file" multiple accept="{{ accept }}" class="visually-hidden">
+      <label for="files" id="dropzone" class="dropzone">
+        <strong>Tap to choose files</strong><span class="muted">or drag and drop them here</span>
+        <span class="hint">PDF, Word, Excel, PowerPoint, text, JPG, PNG, HEIC and more</span>
+      </label>
+      <ul id="file-list" class="file-list" aria-live="polite"></ul>
+    </div>
+    {% else %}
+    <p class="notice mt">Bring your papers to the shop. We scan them and send the result to your WhatsApp.</p>
+    {% endif %}
+
+    <div class="field">
+      <label for="notes">Instructions (optional)</label>
+      <textarea id="notes" name="notes" rows="3" maxlength="2000" placeholder="What should we edit or change before printing?">{{ form.get('notes', '') }}</textarea>
+    </div>
+    <div class="field">
+      <label for="customer_name">Your name</label>
+      <input id="customer_name" name="customer_name" type="text" maxlength="120" required autocomplete="name" value="{{ form.get('customer_name', '') }}">
+    </div>
+    <div class="field">
+      <label for="whatsapp">Your WhatsApp number</label>
+      <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="0712 345 678" required value="{{ form.get('whatsapp', '') }}">
+      <p class="hint">We use this only to confirm and deliver your order.</p>
+    </div>
+
+    <div class="bottom-bar">
+      <div class="bottom-in">
+        <div><div class="small muted">Estimated total</div><div class="total" id="total">KES {{ svc.from_price }}</div></div>
+        <button id="send" class="btn btn-primary" type="submit">Send order</button>
+      </div>
+      <div class="bottom-in"><progress id="progress" max="100" value="0" hidden></progress></div>
+    </div>
+  </form>
+  <script type="application/json" id="order-config">{{ cfg|tojson }}</script>
+  {% endif %}
+  {% endif %}
+</div>
 {% endblock %}
